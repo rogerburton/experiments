@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnostic de Risque — SMART</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand: #1a5276; --brand-light: #2e86c1; --accent: #f39c12;
+      --ok: #27ae60; --warn: #e67e22; --danger: #c0392b;
+      --bg: #f4f6f8; --card: #ffffff; --text: #2c3e50; --muted: #7f8c8d;
+      --radius: 14px; --shadow: 0 4px 20px rgba(0,0,0,.09);
+      --transition: .3s cubic-bezier(.4,0,.2,1);
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 4rem; }
+    header { width: 100%; max-width: 700px; display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+    .logo { background: var(--brand); color: #fff; font-weight: 800; font-size: 1.1rem;
+      padding: .45rem .9rem; border-radius: 8px; letter-spacing: .5px; }
+    .header-title { font-size: .95rem; color: var(--muted); }
+    .progress-wrap { width: 100%; max-width: 700px; margin-bottom: 1.5rem; }
+    .progress-labels { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-bottom: .4rem; }
+    .progress-bar-bg { height: 6px; background: #dce3ea; border-radius: 99px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--brand), var(--brand-light));
+      border-radius: 99px; transition: width var(--transition); }
+    .card { width: 100%; max-width: 700px; background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 2.2rem 2.4rem; animation: fadeIn .35s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .step-tag { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--brand-light); margin-bottom: .6rem; }
+    .question { font-size: 1.25rem; font-weight: 700; line-height: 1.4; margin-bottom: .5rem; }
+    .question-hint { font-size: .88rem; color: var(--muted); margin-bottom: 1.6rem; line-height: 1.5; }
+    .options { display: flex; flex-direction: column; gap: .75rem; }
+    .option { display: flex; align-items: flex-start; gap: 1rem; padding: 1rem 1.2rem;
+      border: 2px solid #e0e6ed; border-radius: 10px; cursor: pointer;
+      transition: border-color var(--transition), background var(--transition), transform .15s; user-select: none; }
+    .option:hover { border-color: var(--brand-light); background: #f0f7ff; transform: translateX(3px); }
+    .option.selected { border-color: var(--brand); background: #e8f4fd; }
+    .option-icon { font-size: 1.5rem; flex-shrink: 0; margin-top: .05rem; }
+    .option-text { flex: 1; }
+    .option-label { font-weight: 600; font-size: .97rem; color: var(--text); display: block; margin-bottom: .2rem; }
+    .option-desc { font-size: .83rem; color: var(--muted); line-height: 1.45; }
+    .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.8rem; }
+    button { padding: .7rem 1.6rem; border: none; border-radius: 8px; font-size: .95rem;
+      font-weight: 600; cursor: pointer; transition: opacity .2s, transform .15s; }
+    button:active { transform: scale(.97); }
+    .btn-next { background: var(--brand); color: #fff; margin-left: auto; }
+    .btn-next:disabled { opacity: .35; cursor: default; }
+    .btn-back { background: transparent; color: var(--muted); border: 1.5px solid #dce3ea; }
+    .btn-back:hover { border-color: var(--brand-light); color: var(--brand); }
+    .intro-hero { text-align: center; padding: 1rem 0 1.5rem; }
+    .intro-hero .big-icon { font-size: 3.5rem; display: block; margin-bottom: 1rem; }
+    .intro-hero h1 { font-size: 1.6rem; font-weight: 800; margin-bottom: .8rem; color: var(--brand); }
+    .intro-hero p { font-size: .95rem; color: var(--muted); line-height: 1.6; max-width: 520px; margin: 0 auto .5rem; }
+    .intro-dimensions { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; margin: 1.5rem 0; }
+    .dim-pill { background: var(--bg); border-radius: 8px; padding: .6rem 1rem; font-size: .85rem;
+      font-weight: 600; display: flex; align-items: center; gap: .5rem; color: var(--brand); }
+    .results-header { text-align: center; margin-bottom: 2rem; }
+    .results-header h2 { font-size: 1.5rem; font-weight: 800; color: var(--brand); margin-bottom: .4rem; }
+    .results-header p { font-size: .9rem; color: var(--muted); }
+    .scores-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    .score-card { background: var(--bg); border-radius: 10px; padding: 1rem 1.1rem; border-left: 4px solid var(--brand-light); }
+    .score-card .dim-name { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: .3rem; }
+    .score-card .dim-label { font-size: .92rem; font-weight: 600; color: var(--text); margin-bottom: .4rem; }
+    .score-bar-bg { height: 6px; background: #dce3ea; border-radius: 99px; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 99px; }
+    .global-scores { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+    .global-badge { flex: 1; border-radius: 12px; padding: 1.1rem; text-align: center; color: #fff; }
+    .global-badge .badge-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; opacity: .85; margin-bottom: .3rem; }
+    .global-badge .badge-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .global-badge .badge-sub { font-size: .78rem; opacity: .85; margin-top: .3rem; }
+    .radar-wrap { margin: 1rem 0 1.5rem; position: relative; height: 300px; }
+    .alerts-section { margin-bottom: 1.5rem; }
+    .alerts-section h3 { font-size: .95rem; font-weight: 700; margin-bottom: .7rem; color: var(--text); }
+    .alert-item { display: flex; align-items: flex-start; gap: .7rem; padding: .75rem 1rem;
+      border-radius: 8px; margin-bottom: .5rem; font-size: .88rem; line-height: 1.45; }
+    .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: .05rem; }
+    .alert-danger { background: #fdf2f2; color: #922b21; }
+    .alert-warn   { background: #fef9e7; color: #784212; }
+    .alert-ok     { background: #eafaf1; color: #1e8449; }
+    .profile-banner { border-radius: 12px; padding: 1.1rem 1.4rem; margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 1rem; }
+    .profile-banner .pb-icon { font-size: 2.2rem; flex-shrink: 0; }
+    .profile-banner .pb-title { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; opacity: .75; margin-bottom: .25rem; }
+    .profile-banner .pb-name { font-size: 1.15rem; font-weight: 800; }
+    .profile-banner .pb-desc { font-size: .85rem; opacity: .85; margin-top: .2rem; line-height: 1.4; }
+    .btn-restart { width: 100%; padding: .85rem; background: var(--bg); color: var(--brand);
+      border: 2px solid var(--brand-light); border-radius: 10px; font-size: .95rem; font-weight: 700; margin-top: .5rem; }
+    .btn-restart:hover { background: #e8f4fd; }
+    @media (max-width: 540px) {
+      .card { padding: 1.5rem 1.2rem; }
+      .scores-grid, .global-scores, .intro-dimensions { grid-template-columns: 1fr; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo" id="headerBrand"></div>
+  <span class="header-title" id="headerSubtitle"></span>
+</header>
+<div class="progress-wrap" id="progressWrap" style="display:none">
+  <div class="progress-labels">
+    <span id="progressLabel"></span>
+    <span id="progressPct"></span>
+  </div>
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+  </div>
+</div>
+<div class="card" id="appCard"></div>
+
+<script>
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║              ZONE DE CONFIGURATION                          ║
+   ║  Modifiez librement cette section.                          ║
+   ║  Ne touchez pas à la section MOTEUR en dessous.             ║
+   ╚══════════════════════════════════════════════════════════════╝
+
+   STRUCTURE D'UNE ÉTAPE (type "question") :
+   ─────────────────────────────────────────
+   id        : identifiant unique (chaîne)
+   tag       : sous-titre affiché au-dessus de la question
+   question  : texte de la question
+   hint      : texte d'aide (optionnel — omettez la clé pour l'enlever)
+   condition : { field, opérateur, valeur } — si absent l'étape est toujours visible
+               "field" = chemin dans state, ex. "scores.charges" ou "etp"
+               opérateurs disponibles : eq  neq  gt  gte  lt  lte
+   sets      : liste d'assignations déclenchées quand l'utilisateur choisit une option
+               { path: "chemin.dans.state", from: "propriété de l'option" }
+               Valeur spéciale : from "_index" → index de l'option sélectionnée (0, 1, 2…)
+   options   : tableau d'objets { icon, label, desc, ...autresPropsRéféréesDansSets }
+
+   ALERTES — champs disponibles dans les conditions :
+   ───────────────────────────────────────────────────
+     charges, portefeuille, marche, diversite  — scores des dimensions (1-5)
+     rsg, cfa                                  — scores calculés
+     etp                                       — taille de la structure
+     + tout champ extra stocké via sets → extra.*  (ex. impayeEtranger)
+   Interpolation dans "text" : {{nomDuChamp}} est remplacé par la valeur.
+   "fallback: true" → affiché uniquement si aucune autre alerte ne correspond.
+*/
+
+const CONFIG = {
+
+  /* ── Interface ── */
+  meta: {
+    brand:    "SMART",
+    subtitle: "Diagnostic de profil de risque",
+    intro: {
+      icon:  "🧭",
+      title: "Quel est votre profil de risque ?",
+      desc1: "En 5 à 7 questions simples, découvrez comment votre activité se positionne sur 4 dimensions clés et obtenez votre score de risque global.",
+      desc2: "Aucune donnée n'est transmise — tout se passe dans votre navigateur.",
+      pills: [
+        { icon: "💰", label: "Structure des charges" },
+        { icon: "👥", label: "Portefeuille clients" },
+        { icon: "🌍", label: "Complexité du marché" },
+        { icon: "🎯", label: "Concentration des activités" }
+      ]
+    }
+  },
+
+  /* ── Dimensions scorées ──
+     Clé = identifiant utilisé dans scoring.rsg.dimensions et dans les steps.
+     scoreLabels : score (entier) → libellé affiché dans les résultats.
+  ── */
+  dimensions: {
+    charges: {
+      label: "Charges",
+      scoreLabels: { 1:"Low Overhead", 2:"Inventory-Light", 3:"Labor-Intensive", 4:"Labor-Intensif++", 5:"Asset-Heavy" }
+    },
+    portefeuille: {
+      label: "Portefeuille",
+      scoreLabels: { 1:"Atomisé", 2:"Récurrent", 3:"Concentré", 4:"Bi-dépendant", 5:"Monoclient" }
+    },
+    marche: {
+      label: "Marché",
+      scoreLabels: { 1:"B2C Local", 2:"B2B National", 4:"Intracom UE", 5:"Extracom" }
+    },
+    diversite: {
+      label: "Diversité",
+      scoreLabels: { 1:"Multi-activités", 2:"Biactivité", 4:"Quasi-mono", 5:"Mono-activité" }
+    }
+  },
+
+  /* ── Calcul du score global ──
+     rsg.dimensions  : dimensions incluses dans la moyenne RSG
+     cfa.dimensions  : dimensions incluses dans la moyenne CFA
+     cfa.divisor     : champ de state utilisé comme diviseur (ex. "etp")
+     profiles        : tranches de RSG (ordre croissant, "max" exclu)
+  ── */
+  scoring: {
+    rsg: {
+      dimensions: ["charges", "portefeuille", "marche", "diversite"]
+    },
+    cfa: {
+      dimensions: ["marche", "diversite"],
+      divisor: "etp"
+    },
+    profiles: [
+      { max: 2,  icon: "🟢", color: "#27ae60", bg: "#eafaf1",
+        name: "Profil Agile",
+        desc: "Structure légère et résiliente. Votre exposition au risque est faible — votre énergie peut se concentrer sur votre cœur de métier." },
+      { max: 3,  icon: "🟡", color: "#f39c12", bg: "#fef9e7",
+        name: "Profil Équilibré",
+        desc: "Une gestion courante bien menée suffit. Quelques points de vigilance à surveiller dans la durée." },
+      { max: 4,  icon: "🟠", color: "#e67e22", bg: "#fdf5e6",
+        name: "Profil Tendu",
+        desc: "Votre structure présente plusieurs facteurs de risque combinés. Un accompagnement structuré peut faire une vraie différence." },
+      { max: 99, icon: "🔴", color: "#c0392b", bg: "#fdf2f2",
+        name: "Profil Fragile",
+        desc: "Exposition élevée sur plusieurs dimensions à la fois. Une intervention prioritaire est recommandée pour sécuriser votre activité." }
+    ]
+  },
+
+  /* ── Alertes ── */
+  alerts: [
+    {
+      conditions: [{ field: "rsg", lt: 2 }],
+      type: "ok", icon: "✅",
+      text: "Votre profil global est solide. Continuez à surveiller l'évolution de votre portefeuille clients."
+    },
+    {
+      conditions: [{ field: "charges", eq: 5 }, { field: "portefeuille", gte: 4 }],
+      type: "danger", icon: "🔴",
+      text: "<strong>Alerte critique :</strong> Structure de charges lourde + dépendance client forte. Un retard de paiement peut directement menacer la survie de votre activité."
+    },
+    {
+      conditions: [{ field: "portefeuille", gte: 4 }, { field: "rsg", gte: 3.5 }],
+      type: "danger", icon: "🔴",
+      text: "<strong>Dépendance critique :</strong> Votre score global est élevé et votre portefeuille est très concentré. La diversification client est une priorité."
+    },
+    {
+      conditions: [{ field: "marche", gte: 4 }, { field: "diversite", gte: 4 }],
+      type: "warn", icon: "⚠️",
+      text: "<strong>Surcharge réglementaire :</strong> Marché international + activité peu diversifiée. Vérifiez votre couverture juridique et vos garanties de paiement."
+    },
+    {
+      conditions: [{ field: "cfa", gt: 4 }, { field: "etp", eq: 1 }],
+      type: "warn", icon: "⚠️",
+      text: "<strong>Capacité de gestion dépassée (CFA = {{cfa}}) :</strong> Vous consacrez probablement plus de 25 % de votre temps à la gestion administrative au détriment de votre activité."
+    },
+    {
+      conditions: [{ field: "marche", gte: 4 }, { field: "charges", gte: 3 }],
+      type: "warn", icon: "⚠️",
+      text: "<strong>Double exposition :</strong> Coût de conformité international élevé + structure de charges rigide — peu de marge de manœuvre en cas de creux."
+    },
+    {
+      conditions: [{ field: "portefeuille", lte: 2 }, { field: "charges", lte: 2 }],
+      type: "ok", icon: "✅",
+      text: "Bonne diversification client et charges flexibles — votre activité absorbe bien les aléas."
+    },
+    {
+      conditions: [{ field: "impayeEtranger", eq: 2 }],
+      type: "danger", icon: "🔴",
+      text: "<strong>Historique d'impayés internationaux :</strong> Envisagez une assurance-crédit export ou un accompagnement juridique spécialisé."
+    },
+    {
+      fallback: true,
+      conditions: [],
+      type: "ok", icon: "✅",
+      text: "Aucune alerte critique détectée. Votre profil présente un niveau de risque maîtrisable."
+    }
+  ],
+
+  /* ── Étapes ── */
+  steps: [
+
+    { id: "intro", type: "intro" },
+
+    {
+      id: "taille",
+      type: "question",
+      tag: "Votre structure",
+      question: "Combien de personnes travaillent dans votre activité ?",
+      hint: "Comptez vous-même, vos associés et vos collaborateurs réguliers (temps plein ou équivalent).",
+      sets: [{ path: "etp", from: "etp" }],
+      options: [
+        { icon: "🧑", label: "Je travaille seul·e",  desc: "Pas d'associé, pas de salarié.",                etp: 1   },
+        { icon: "👥", label: "2 à 3 personnes",       desc: "Un ou deux associés ou collaborateurs fixes.", etp: 2.5 },
+        { icon: "🏢", label: "4 personnes ou plus",   desc: "Une équipe constituée.",                       etp: 4   }
+      ]
+    },
+
+    {
+      id: "charges",
+      type: "question",
+      tag: "Dimension 1 — Structure des charges",
+      question: "Comment décririez-vous la nature de vos coûts principaux ?",
+      hint: "Pensez à ce qui vous coûterait de l'argent même si vous n'aviez aucune mission ce mois-ci.",
+      sets: [
+        { path: "scores.charges",   from: "score"   },
+        { path: "extra.chargesSeg", from: "segment" }
+      ],
+      options: [
+        { icon: "💻", label: "Principalement des abonnements et logiciels",
+          desc: "Je travaille depuis chez moi ou chez le client, sans matériel lourd. Mes frais fixes sont minimes.",
+          score: 1, segment: "Low Overhead" },
+        { icon: "🔀", label: "Je mets en relation des acteurs et touche des commissions",
+          desc: "Mes coûts n'apparaissent que quand une transaction se réalise (publicité, commissions reversées).",
+          score: 2, segment: "Inventory-Light" },
+        { icon: "👷", label: "Mes collaborateurs et leurs salaires sont mon principal poste de coût",
+          desc: "J'emploie des salariés ou sous-traitants réguliers pour réaliser mes prestations.",
+          score: 3, segment: "Labor-Intensive" },
+        { icon: "🏭", label: "J'ai un local, du matériel lourd, des machines ou un véhicule professionnel",
+          desc: "Leasing, loyer d'atelier, entretien : je dois générer du chiffre d'affaires juste pour couvrir mes charges fixes.",
+          score: 5, segment: "Asset-Heavy" }
+      ]
+    },
+
+    {
+      id: "labor_type",
+      type: "question",
+      tag: "Dimension 1 — Précision",
+      question: "Vos collaborateurs sont-ils plutôt des employés fixes ou des sous-traitants ponctuels ?",
+      hint: "Les employés fixes génèrent des obligations (préavis, cotisations) ; les sous-traitants ponctuels offrent plus de flexibilité.",
+      condition: { field: "scores.charges", eq: 3 },
+      sets: [{ path: "scores.charges", from: "score" }],
+      options: [
+        { icon: "📋", label: "Des sous-traitants ponctuels",      desc: "Je fais appel à eux selon les projets, sans obligation de volume.", score: 3 },
+        { icon: "📑", label: "Principalement des salariés fixes",  desc: "J'ai des engagements contractuels et des charges sociales récurrentes.", score: 4 }
+      ]
+    },
+
+    {
+      id: "portefeuille",
+      type: "question",
+      tag: "Dimension 2 — Portefeuille clients",
+      question: "Comment est répartie votre clientèle ?",
+      hint: "Pensez à la répartition de votre chiffre d'affaires sur la dernière année.",
+      sets: [
+        { path: "scores.portefeuille", from: "score" },
+        { path: "extra.pfSeg",         from: "seg"   }
+      ],
+      options: [
+        { icon: "🌐", label: "Plus de 20 clients actifs",
+          desc: "Aucun client ne représente une part dominante de mes revenus.",
+          score: 1, seg: "Atomisé" },
+        { icon: "🔄", label: "Contrats récurrents ou abonnements",
+          desc: "Mes clients reviennent régulièrement sur base d'un contrat ou d'un abonnement.",
+          score: 2, seg: "Récurrent" },
+        { icon: "🎯", label: "Entre 3 et 10 clients principaux",
+          desc: "Un noyau de clients stables génère l'essentiel de mes revenus.",
+          score: 3, seg: "Concentré" },
+        { icon: "⚠️", label: "1 ou 2 clients représentent presque tout",
+          desc: "La perte d'un client majeur serait très difficile à absorber.",
+          score: 5, seg: "Mono/Bi-dépendant" }
+      ]
+    },
+
+    {
+      id: "client_conc",
+      type: "question",
+      tag: "Dimension 2 — Précision",
+      question: "Quel pourcentage de vos revenus représente votre plus gros client ?",
+      hint: "C'est l'indicateur clé de dépendance. Plus le chiffre est élevé, plus le risque est concentré.",
+      condition: { field: "scores.portefeuille", eq: 3 },
+      sets: [{ path: "scores.portefeuille", from: "score" }],
+      options: [
+        { icon: "🟢", label: "Moins de 25 %",      desc: "Aucun client ne domine vraiment.",        score: 3 },
+        { icon: "🟡", label: "Entre 25 % et 50 %", desc: "Vigilance recommandée.",                  score: 4 },
+        { icon: "🔴", label: "Plus de 50 %",        desc: "Dépendance forte — risque significatif.", score: 5 }
+      ]
+    },
+
+    {
+      id: "marche",
+      type: "question",
+      tag: "Dimension 3 — Marché",
+      question: "Où se trouvent principalement vos clients ?",
+      hint: "La géographie détermine la complexité fiscale, les délais de paiement et les recours en cas d'impayé.",
+      sets: [
+        { path: "scores.marche",   from: "score" },
+        { path: "extra.marcheSeg", from: "seg"   }
+      ],
+      options: [
+        { icon: "🏘️", label: "Des particuliers, surtout locaux (B2C)",
+          desc: "Paiement souvent comptant, peu de délais, recouvrement simple.",
+          score: 1, seg: "B2C Local" },
+        { icon: "🏢", label: "Des entreprises en Belgique (B2B national)",
+          desc: "Délais de paiement habituels (30-60 jours), réglementation standard.",
+          score: 2, seg: "B2B National" },
+        { icon: "🇪🇺", label: "Des entreprises dans d'autres pays de l'UE",
+          desc: "TVA intracommunautaire, VIES, virements SEPA — complexité accrue.",
+          score: 4, seg: "Intracom UE" },
+        { icon: "🌍", label: "Des clients hors d'Europe",
+          desc: "Douanes, devises étrangères, droit étranger — risque d'impayé maximal.",
+          score: 5, seg: "Extracom" }
+      ]
+    },
+
+    {
+      id: "marche_extra",
+      type: "question",
+      tag: "Dimension 3 — Précision",
+      question: "Avez-vous déjà rencontré des difficultés à récupérer un paiement de la part d'un client étranger ?",
+      hint: "Cela permet d'évaluer votre exposition réelle au risque de créance internationale.",
+      condition: { field: "scores.marche", gte: 4 },
+      sets: [{ path: "extra.impayeEtranger", from: "_index" }],
+      options: [
+        { icon: "✅", label: "Non, aucun problème jusqu'ici",          desc: "Les paiements arrivent correctement." },
+        { icon: "🟡", label: "Un ou deux cas compliqués",               desc: "Des retards ou négociations, mais résolus." },
+        { icon: "🔴", label: "Oui, des impayés difficiles à récupérer", desc: "Des pertes réelles ou des procédures longues." }
+      ]
+    },
+
+    {
+      id: "diversite",
+      type: "question",
+      tag: "Dimension 4 — Concentration des activités",
+      question: "Combien de types de prestations ou produits différents proposez-vous ?",
+      hint: "Des activités « différentes » signifient qu'elles s'adressent à des marchés ou des besoins distincts — pas juste des variantes d'un même service.",
+      sets: [
+        { path: "scores.diversite", from: "score" },
+        { path: "extra.divSeg",     from: "seg"   }
+      ],
+      options: [
+        { icon: "🎨", label: "3 activités ou plus, bien distinctes",
+          desc: "Si l'une ralentit, les autres peuvent compenser.",
+          score: 1, seg: "Multi-activités" },
+        { icon: "⚖️", label: "Deux activités complémentaires",
+          desc: "Un certain équilibre, une dépendance partielle.",
+          score: 2, seg: "Biactivité" },
+        { icon: "📌", label: "Une activité principale + quelques services annexes",
+          desc: "L'accessoire représente moins de 20 % des revenus.",
+          score: 4, seg: "Quasi-mono" },
+        { icon: "🔩", label: "Une seule et unique prestation ou famille de produits",
+          desc: "Spécialisation totale — tout ou rien.",
+          score: 5, seg: "Mono-activité" }
+      ]
+    },
+
+    { id: "results", type: "results" }
+  ]
+
+}; /* ← fin CONFIG */
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║                      MOTEUR                                 ║
+   ║  Ne pas modifier sauf si vous savez ce que vous faites.     ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* ── État global ── */
+const state = { etp: 1, scores: {}, extra: {} };
+
+/* ── Utilitaires chemin ── */
+function getPath(obj, path) {
+  return path.split('.').reduce((o, k) => (o != null ? o[k] : undefined), obj);
+}
+function setPath(obj, path, val) {
+  const parts = path.split('.');
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (cur[parts[i]] == null) cur[parts[i]] = {};
+    cur = cur[parts[i]];
+  }
+  cur[parts[parts.length - 1]] = val;
+}
+
+/* ── Évaluation de condition ──
+   ctx = objet plat (résultats) pour les alertes,
+         {}                      pour les conditions d'étapes (résolution via state)
+── */
+function evalCond(cond, ctx) {
+  const v = (cond.field in ctx) ? ctx[cond.field] : getPath(state, cond.field);
+  if ('eq'  in cond) return v === cond.eq;
+  if ('neq' in cond) return v !== cond.neq;
+  if ('gt'  in cond) return v >   cond.gt;
+  if ('gte' in cond) return v >=  cond.gte;
+  if ('lt'  in cond) return v <   cond.lt;
+  if ('lte' in cond) return v <=  cond.lte;
+  return true;
+}
+function evalAll(conditions, ctx) {
+  return (conditions || []).every(c => evalCond(c, ctx));
+}
+
+/* ── Calcul des résultats ── */
+function computeResults() {
+  const { rsg: rsgCfg, cfa: cfaCfg } = CONFIG.scoring;
+
+  const rsgScores = rsgCfg.dimensions.map(d => state.scores[d] || 0);
+  const rsg = rsgScores.reduce((a, b) => a + b, 0) / rsgScores.length;
+
+  const cfaScores = cfaCfg.dimensions.map(d => state.scores[d] || 0);
+  const cfaNumer  = cfaScores.reduce((a, b) => a + b, 0) / cfaScores.length;
+  const cfaDiv    = getPath(state, cfaCfg.divisor) || 1;
+  const cfa       = cfaNumer / cfaDiv;
+
+  const r = {
+    rsg: parseFloat(rsg.toFixed(2)),
+    cfa: parseFloat(cfa.toFixed(1)),
+    etp: state.etp
+  };
+  rsgCfg.dimensions.forEach(d => { r[d] = state.scores[d] || 0; });
+  Object.keys(state.extra).forEach(k => { r[k] = state.extra[k]; });
+  return r;
+}
+
+function getProfile(rsg) {
+  return CONFIG.scoring.profiles.find(p => rsg < p.max)
+      || CONFIG.scoring.profiles[CONFIG.scoring.profiles.length - 1];
+}
+
+function buildAlerts(r) {
+  const ctx = { ...r, ...state.extra };
+  const matched = CONFIG.alerts.filter(a => !a.fallback && evalAll(a.conditions, ctx));
+  const toShow  = matched.length > 0 ? matched : CONFIG.alerts.filter(a => a.fallback);
+  return toShow.map(a => ({
+    ...a,
+    text: a.text.replace(/\{\{(\w+)\}\}/g, (_, k) => (ctx[k] != null ? ctx[k] : k))
+  }));
+}
+
+/* ── Wizard ── */
+let currentStepIndex = 0;
+let selectedOption   = null;
+let chartInstance    = null;
+
+function getVisibleSteps() {
+  return CONFIG.steps.filter(s => !s.condition || evalCond(s.condition, {}));
+}
+
+function render() {
+  const visible = getVisibleSteps();
+  const step    = visible[currentStepIndex];
+  const card    = document.getElementById('appCard');
+  const pWrap   = document.getElementById('progressWrap');
+  selectedOption = null;
+
+  if (step.type === 'intro') {
+    pWrap.style.display = 'none';
+    card.innerHTML = renderIntro();
+    card.querySelector('.btn-next').addEventListener('click', () => { currentStepIndex++; render(); });
+    return;
+  }
+
+  if (step.type === 'results') {
+    pWrap.style.display = 'none';
+    card.innerHTML = renderResults();
+    card.querySelector('.btn-restart').addEventListener('click', restart);
+    renderRadar();
+    return;
+  }
+
+  /* Barre de progression */
+  const questions = visible.filter(s => s.type === 'question');
+  const qIndex    = questions.indexOf(step);
+  const pct       = Math.round((qIndex / questions.length) * 100);
+  pWrap.style.display = 'block';
+  document.getElementById('progressLabel').textContent = `Question ${qIndex + 1} sur ${questions.length}`;
+  document.getElementById('progressPct').textContent   = pct + ' %';
+  document.getElementById('progressFill').style.width  = pct + '%';
+
+  const isFirst = (currentStepIndex === 0) ||
+                  (currentStepIndex === 1 && visible[0].type === 'intro');
+  card.innerHTML = renderQuestion(step, isFirst);
+
+  card.querySelectorAll('.option').forEach((el, i) => {
+    el.addEventListener('click', () => {
+      card.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedOption = i;
+      /* Appliquer les setters déclarés dans CONFIG */
+      (step.sets || []).forEach(setter => {
+        const val = setter.from === '_index' ? i : step.options[i][setter.from];
+        setPath(state, setter.path, val);
+      });
+      card.querySelector('.btn-next').disabled = false;
+    });
+  });
+
+  card.querySelector('.btn-next').addEventListener('click', () => {
+    if (selectedOption === null) return;
+    currentStepIndex++;
+    render();
+  });
+
+  if (!isFirst) {
+    card.querySelector('.btn-back').addEventListener('click', () => {
+      currentStepIndex--;
+      render();
+    });
+  }
+}
+
+/* ── Templates HTML ── */
+function renderIntro() {
+  const { intro } = CONFIG.meta;
+  return `
+    <div class="intro-hero">
+      <span class="big-icon">${intro.icon}</span>
+      <h1>${intro.title}</h1>
+      <p>${intro.desc1}</p>
+      <p style="margin-top:.4rem">${intro.desc2}</p>
+      <div class="intro-dimensions">
+        ${intro.pills.map(p => `<div class="dim-pill">${p.icon} ${p.label}</div>`).join('')}
+      </div>
+    </div>
+    <button class="btn-next" style="width:100%;padding:.9rem;font-size:1rem">Commencer le diagnostic →</button>
+  `;
+}
+
+function renderQuestion(step, isFirst) {
+  return `
+    <div class="step-tag">${step.tag}</div>
+    <div class="question">${step.question}</div>
+    ${step.hint ? `<div class="question-hint">${step.hint}</div>` : ''}
+    <div class="options">
+      ${step.options.map(o => `
+        <div class="option">
+          <span class="option-icon">${o.icon}</span>
+          <div class="option-text">
+            <span class="option-label">${o.label}</span>
+            <span class="option-desc">${o.desc}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="nav">
+      ${!isFirst ? '<button class="btn-back">← Retour</button>' : '<span></span>'}
+      <button class="btn-next" disabled>Suivant →</button>
+    </div>
+  `;
+}
+
+function scoreColor(v) {
+  if (v <= 2) return '#27ae60';
+  if (v <= 3) return '#f39c12';
+  if (v <= 4) return '#e67e22';
+  return '#c0392b';
+}
+
+function renderResults() {
+  const r      = computeResults();
+  const prof   = getProfile(r.rsg);
+  const alerts = buildAlerts(r);
+  const dims   = CONFIG.scoring.rsg.dimensions.map(d => ({
+    key: d, name: CONFIG.dimensions[d]?.label || d, score: r[d]
+  }));
+  const cfaColor = r.cfa < 2 ? '#27ae60' : r.cfa <= 4 ? '#e67e22' : '#c0392b';
+  const cfaSub   = r.cfa < 2 ? 'Gestion fluide' : r.cfa <= 4 ? 'Charge notable' : 'Zone critique';
+
+  return `
+    <div class="results-header">
+      <h2>Votre diagnostic de risque</h2>
+      <p>Basé sur vos réponses — recalculé localement, aucune donnée transmise.</p>
+    </div>
+
+    <div class="profile-banner" style="background:${prof.bg};color:${prof.color}">
+      <span class="pb-icon">${prof.icon}</span>
+      <div>
+        <div class="pb-title">Votre profil global</div>
+        <div class="pb-name">${prof.name}</div>
+        <div class="pb-desc">${prof.desc}</div>
+      </div>
+    </div>
+
+    <div class="global-scores">
+      <div class="global-badge" style="background:${prof.color}">
+        <div class="badge-label">Score de risque global (RSG)</div>
+        <div class="badge-value">${r.rsg}</div>
+        <div class="badge-sub">sur 5</div>
+      </div>
+      <div class="global-badge" style="background:${cfaColor}">
+        <div class="badge-label">Friction admin (CFA)</div>
+        <div class="badge-value">${r.cfa}</div>
+        <div class="badge-sub">${cfaSub}</div>
+      </div>
+    </div>
+
+    <div class="scores-grid">
+      ${dims.map(d => `
+        <div class="score-card">
+          <div class="dim-name">${d.name}</div>
+          <div class="dim-label">${CONFIG.dimensions[d.key]?.scoreLabels?.[d.score] ?? '—'}</div>
+          <div class="score-bar-bg">
+            <div class="score-bar-fill" style="width:${d.score/5*100}%;background:${scoreColor(d.score)}"></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="radar-wrap"><canvas id="radarCanvas"></canvas></div>
+
+    <div class="alerts-section">
+      <h3>Points d'attention</h3>
+      ${alerts.map(a => `
+        <div class="alert-item alert-${a.type}">
+          <span class="alert-icon">${a.icon}</span>
+          <span>${a.text}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <button class="btn-restart">↩ Recommencer le diagnostic</button>
+  `;
+}
+
+function renderRadar() {
+  const r    = computeResults();
+  const dims = CONFIG.scoring.rsg.dimensions;
+  const ctx  = document.getElementById('radarCanvas').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels:   dims.map(d => CONFIG.dimensions[d]?.label || d),
+      datasets: [{
+        label: 'Votre profil',
+        data:  dims.map(d => r[d]),
+        backgroundColor:     'rgba(46,134,193,.2)',
+        borderColor:         '#2e86c1',
+        borderWidth:         2.5,
+        pointBackgroundColor:'#1a5276',
+        pointRadius:         5
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0, max: 5,
+          ticks: { stepSize: 1, color: '#7f8c8d', font: { size: 11 }, backdropColor: 'transparent' },
+          grid:        { color: 'rgba(0,0,0,.08)' },
+          pointLabels: { color: '#2c3e50', font: { size: 12, weight: '600' } },
+          angleLines:  { color: 'rgba(0,0,0,.1)' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` Score : ${c.raw} / 5` } }
+      }
+    }
+  });
+}
+
+function restart() {
+  state.etp    = 1;
+  state.scores = {};
+  state.extra  = {};
+  currentStepIndex = 0;
+  selectedOption   = null;
+  render();
+}
+
+/* ── Init ── */
+document.getElementById('headerBrand').textContent    = CONFIG.meta.brand;
+document.getElementById('headerSubtitle').textContent = CONFIG.meta.subtitle;
+render();
+</script>
+</body>
+</html>
