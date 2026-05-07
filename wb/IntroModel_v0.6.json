@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "title": "introModel_v0.6",
+  "saved": "2026-05-06T19:32:34.870Z",
+  "blocks": [
+    {
+      "num": 1,
+      "type": "mermaid",
+      "x": 119.988,
+      "y": 42.7188,
+      "w": 1287,
+      "h": 609,
+      "data": {
+        "code": "flowchart TD\nsubgraph sg5[\"intuition 5 : homologie des systèmes\"]\n    Z1@{ shape: fork, label: \"Fork or Join\" }\n    J@{ shape: braces, label: \"Un tel modèle conceptuel a-t-il un intérêt\" }\n    K@{ shape: braces, label: \"Oui : l'on peut en faire découler une archi d'entreprise et une archi applicative homologues, chacune représentant le modèle conceptuel de base.\" }\nend\n\nsubgraph sg4[intuition 4 : et la compta ?]\n    Z2@{ shape: fork, label: \"Fork or Join\" }\n    H@{ shape: braces, label: \"Peut-on modéliser les schemas d'écritures comptable d'une façon similaire\" }\n    I@{ shape: braces, label: \"Oui : en décomposant un schéma en triplet : fait éco - montant - compte au débit - compte au crédit\" }\nend\n\nsubgraph sg3[intuition 2 : l'échange comme modèle avant REA]\n    Z4@{ shape: fork, label: \"Fork or Join\" }\n    C@{ shape: braces, label: \"Peut-on remonter d'un cran au-dessus de REA dans la généricité \" }\n    D1@{ shape: braces, label: \"Oui : le sketchonomic\" }\n    D2@{ shape: braces, label: \"et l'on peut composer des sketch dans une scène d'affaire, un type d'échange dans un contexte corporate donné, afin de représenter entièrement les processus en jeu dans cette scène\" }\nend\n\nsubgraph sg200[intuition 3bis : la nature d'un échange]\n    Z30@{ shape: fork, label: \"Fork or Join\" }\n    E30@{ shape: braces, label: \"Quel est le rapport entre déclaration et règlements/lois \" }\n    E300@{ shape: braces, label: \"Les données et la grammaire d'un déclaratif ou d'un jeu de déclaratifs expriment de façon suffisamment dense, consistante et complète les lois et règlements applicables à un type d'échange.\" }\nend\n\nsubgraph sg2[intuition 3 : la nature d'un échange]\n    Z3@{ shape: fork, label: \"Fork or Join\" }\n    E@{ shape: braces, label: \"Existe-t-il une typologie utile des échanges ?\" }\n    F@{ shape: braces, label: \"Oui : selon la nature des ressources\" }\n    node1[\"`money in exchange for general goods and services, money vs copyright, money vs money, money vs ...`\"]\n    node2[\"`l'information a aussi de la valeur ... quitus vs declaration, quitus vs money.`\"]\n    G@{ shape: braces, label: \"un type d'échange emporte avec lui un jeu de règles, comptables, juridiques, déclaratives, spécifiques\" }\nend\n\nsubgraph sg1[intuition 1]\n    Z5@{ shape: fork, label: \"Fork or Join\" }\n    A@{ shape: braces, label: \"On n'est quand même pas les **seuls** à traiter des échanges économiques ?\" }\n    B@{ shape: braces, label: \"Non ... REA ... UBL .. UN/CEFACT ...\" }\nend\nclassDef slm fill:LightCyan\nclassDef cpt fill:BlanchedAlmond\nclassDef final fill:Tomato\nclassDef z fill:none,stroke:none\n\nclass Z1,Z2,Z3,Z30,Z4,Z5 z\nclass sg1 slm\nclass sg4 cpt\nclass sg5 final",
+        "title": "Intuitions de départ",
+        "num": 1
+      }
+    }
+  ]
+}
